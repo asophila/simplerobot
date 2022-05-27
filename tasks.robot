@@ -7,6 +7,13 @@ Library             RPA.Browser.Selenium
 Library             RPA.PDF
 Library             RPA.FileSystem
 Library             RPA.Archive
+Library             Dialogs
+Library             RPA.Robocorp.Vault
+
+
+*** Variables ***
+${prefix}       none
+${secret}
 
 
 *** Tasks ***
@@ -18,7 +25,6 @@ A robot for buying robots
     [Teardown]    Clean and close
 
 
-
 *** Keywords ***
 Download the robot shopping list
     Download    https://robotsparebinindustries.com/orders.csv    overwrite=True
@@ -28,13 +34,21 @@ Log into the system
 
 Purchase all robots in list
     Log    Reading csv file
+    Ask for file prefix
+    ${secret}    Get Secret    option
     @{orders}    Read table from CSV    path=orders.csv    header=True    delimiters=,
     FOR    ${order}    IN    @{orders}
         Log    ${order}
-        Click Element When Visible    //button[normalize-space()='Yep']
+        Click Element When Visible
+        ...    //button[normalize-space()='${secret}[label]']    #//button[normalize-space()='Yep']
         Purchase a robot    ${order}
         Save receipt as PDF    ${order}
     END
+
+Ask for file prefix
+    ${prefix}    Get Value From User
+    ...    message=Please enter a prefix for the pdf filenames
+    ...    default_value=receipt-
 
 Purchase a robot
     [Arguments]    ${order}
@@ -83,14 +97,14 @@ Save receipt as PDF
 
     Html To Pdf
     ...    ${receipt_html}
-    ...    ./tmp/receipt-${order}[Order number].pdf
+    ...    ${CURDIR}${/}tmp${/}${prefix}${order}[Order number].pdf
 
     Log    Save receipt
 
     Add Watermark Image To Pdf
-    ...    image_path=./tmp/${order}[Order number].png
-    ...    source_path=./tmp/receipt-${order}[Order number].pdf
-    ...    output_path=./pdf/${order}[Order number].pdf
+    ...    image_path=${CURDIR}${/}tmp${/}${prefix}${order}[Order number].png
+    ...    source_path=${CURDIR}${/}tmp${/}${prefix}${order}[Order number].pdf
+    ...    output_path=${CURDIR}${/}pdf${/}${prefix}${order}[Order number].pdf
 
     Log    Add image
 
@@ -101,7 +115,7 @@ Screenshot that robot
     [Arguments]    ${order}
     Screenshot
     ...    //*[@id="robot-preview-image"]
-    ...    ./tmp/${order}[Order number].png
+    ...    ${CURDIR}${/}tmp${/}${prefix}${order}[Order number].png
     Log    Screenshot
 
 Zip all pdfs
@@ -116,9 +130,9 @@ Zip all pdfs
 
 Clean and close
     Empty Directory
-    ...    ./tmp
+    ...    ${CURDIR}${/}tmp
 
     Empty Directory
-    ...    ./pdf
+    ...    ${CURDIR}${/}pdf
 
     Close All Browsers
